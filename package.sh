@@ -54,11 +54,44 @@ current_dir() {
 usage() {
 cat << EOF
 
-USAGE: $0 
+USAGE: $0 <app path> <ipa path>
 
 DESCRIPTION:
+<app path>: .app的路径
+<ipa path>: 生成的iPA路径
 
 EOF
 }
 
+if [ $# -ne 2 ]; then 
+    usage
+	exit 0
+fi
+
+APP_PATH=$1
+IPA_NAME=$2
+DST_PATH=./Payload/
+CUR_PATH=`pwd`
+
+#app path
+if [ ${APP_PATH:0:1} != "/" ]; then
+	APP_PATH=$CUR_PATH/$APP_PATH
+fi
+
+#check app path
+if [ ! -e "$APP_PATH" ]; then
+	echo "$APP_PATH does't exist!"
+	exit 0
+fi
+
+info '正在打包...'
+rm -rf $DST_PATH
+mkdir -p $DST_PATH
+
+#copy and zip
+cp -rf "$APP_PATH" "$DST_PATH"
+zip -r "$IPA_NAME" "$DST_PATH"
+
+rm -rf "$DST_PATH"
+info "打包完成."
 

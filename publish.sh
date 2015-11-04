@@ -54,11 +54,22 @@ current_dir() {
 usage() {
 cat << EOF
 
-USAGE: $0 
+USAGE: $0 <api key> <user key> <ipa path>
 
 DESCRIPTION:
+<api key>: 蒲公英账号对应的API Key
+<user key>: 蒲公英账号对应的User Key
+<ipa path>: iPA文件的路径
 
 EOF
 }
 
+if [ $# -lt 3 ]; then
+    usage
+    exit 0;
+fi
+
+info "上传IPA到蒲公英...(需要一些时间，请耐心等候)"
+curl -F "file=@$3" -F "uKey=$2" -F "_api_key=$1" http://www.pgyer.com/apiv1/app/upload
+info "上传完成."
 
