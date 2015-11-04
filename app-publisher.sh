@@ -20,8 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-set -e
-
 spushd() {
      pushd "$1" 2>&1> /dev/null
 }
@@ -54,9 +52,10 @@ current_dir() {
 usage() {
 cat << EOF
 
-USAGE: $0 <api key> <user key> <repo> [<branch>]
+USAGE: `basename $0` [-f] <api key> <user key> <repo> [<branch>]
 
 DESCRIPTION:
+-f: 强制更新
 <api key>: 蒲公英账号API Key
 <user key>: 蒲公英账号User Key
 <repo>: 工程仓库路径
@@ -64,13 +63,6 @@ DESCRIPTION:
 
 EOF
 }
-
-LS=/bin/ls
-
-if [ $# -lt 3 ]; then
-    usage
-    exit 0;
-fi
 
 app_release_note() {
     echo `git log -1| sed '1,4d'`
@@ -96,6 +88,8 @@ app_build_version() {
 }
 
 build() {
+    xcodebuild clean -sdk iphoneos -configuration Release
+
     WORKSPACE=`$LS|awk '/.xcworkspace/{print $0}'`
     SCHEME=`xcodebuild -list|sed -n -e '/Schemes:/,//p'|sed '1d'|head -1`
     if test -z $WORKSPACE;then
@@ -105,10 +99,65 @@ build() {
     fi
 }
 
+check() {
+    if test -z "`command -v $1`"; then
+        error "检测 $1 ... no"
+        exit -1
+    else 
+        info "检测 $1 ... yes"
+    fi
+}
+
+# $1
+send_error(){
+error "$1"
+msmtp xuwenfa@star-net.cn <<EOF
+SUBJECT:$1
+EOF
+exit
+}
+
+check_result(){
+    if [ "$?" != "0" ];then
+        send_error $1
+    fi
+}
+
+LS=/bin/ls
+
+# 检测所有命令是否安装
+info "检测环境..."
+check rm
+check ls
+check git
+check zip
+check curl
+check msmtp
+check mkdir
+check base64
+check xcodebuild
+check qrencode
+info "检测完毕."
+
+FORCE=0
+while getopts "f" opt; do
+    case $opt in
+        f) FORCE=1
+            shift
+            ;;
+    esac
+done
+
+if [ $# -lt 4 ]; then
+    usage
+    exit 0;
+fi
+
 API_KEY=$1
 USER_KEY=$2
 REPO=$3
 BRANCH=$4
+
 if test -z $BRANCH; then
     BRANCH=master
 fi
@@ -120,7 +169,13 @@ mkdir -p $HUB_PATH
 spushd $HUB_PATH
 
 # 进入工程目录，并检测是否有更新
-NEED_UPDATE=1
+if [ $FORCE == "1" ];then
+    NEED_UPDATE=1
+else
+    NEED_UPDATE=0
+fi
+
+info "同步代码..."
 if [ ! -d $FILENAME ];then
     `git clone $REPO --branch $BRANCH`
     spushd $FILENAME
@@ -130,15 +185,23 @@ else
 
     # 检测是否有更新
     if test -z "`git pull origin $BRANCH|grep 'Already up-to-date'`"; then
-        NEED_UPDATE=1
-        info "存在新版本..."
+        if [ "$?" == "1" ];then
+            NEED_UPDATE=1
+            info "存在新版本..."
+        else 
+            send_error "同步错误，请检测$REPO."
+        fi
+    else 
+        info "没有更新."
     fi
 fi
+
 
 PROJECT=`$LS|awk -F. '/.xcodeproj/{print $1}'`
 if [ "$NEED_UPDATE" == "1" ]; then
     git checkout $BRANCH
     build
+    check_result "代码编译错误，请检测."
     APP_PATH="build/Build/Products/Release-iphoneos/$PROJECT.app"
     IPA_PATH="build/$PROJECT.ipa"
     package.sh $APP_PATH $IPA_PATH
