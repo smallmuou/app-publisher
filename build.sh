@@ -54,11 +54,13 @@ current_dir() {
 usage() {
 cat << EOF
 
-USAGE: $0 
+USAGE: $0
 
 DESCRIPTION:
 
 EOF
 }
 
+xcodebuild clean -sdk iphoneos -configuration Release
+xcodebuild -sdk iphoneos -configuration Release
 

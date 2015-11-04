@@ -54,12 +54,13 @@ current_dir() {
 usage() {
 cat << EOF
 
-USAGE: $0 <api key> <user key> <ipa path>
+USAGE: $0 <api key> <user key> <ipa path> [<release note>]
 
 DESCRIPTION:
 <api key>: 蒲公英账号对应的API Key
 <user key>: 蒲公英账号对应的User Key
 <ipa path>: iPA文件的路径
+<release note>: 版本更新记录
 
 EOF
 }
@@ -69,7 +70,15 @@ if [ $# -lt 3 ]; then
     exit 0;
 fi
 
-info "上传IPA到蒲公英...(需要一些时间，请耐心等候)"
-curl -F "file=@$3" -F "uKey=$2" -F "_api_key=$1" http://www.pgyer.com/apiv1/app/upload
-info "上传完成."
+TMP_FILE=/tmp/`date '+%s'`
+
+RELEASE_NOTE=
+if [ $# -ge 4 ]; then
+    RELEASE_NOTE=$4
+fi
+
+curl -F "file=@$3" -F "uKey=$2" -F "_api_key=$1" -F "updateDescription=$RELEASE_NOTE" http://www.pgyer.com/apiv1/app/upload > $TMP_FILE
+SHORTCUT_URL=`tr "," "\n" < $TMP_FILE|awk -F\" '/appShortcutUrl/{print $4}'`
+rm -rf $TMP_FILE
+echo "http://www.pgyer.com/"$SHORTCUT_URL
 
