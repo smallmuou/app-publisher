@@ -108,20 +108,6 @@ check() {
     fi
 }
 
-# $1
-send_error(){
-error "$1"
-msmtp xuwenfa@star-net.cn <<EOF
-SUBJECT:$1
-EOF
-exit
-}
-
-check_result(){
-    if [ "$?" != "0" ];then
-        send_error $1
-    fi
-}
 
 LS=/bin/ls
 
@@ -157,6 +143,23 @@ API_KEY=$1
 USER_KEY=$2
 REPO=$3
 BRANCH=$4
+FILENAME=`basename $REPO .git`
+
+# $1
+send_error(){
+error "[$FILENAME] $1"
+msmtp xuwenfa@star-net.cn <<EOF
+SUBJECT:[$FILENAME] $1
+
+EOF
+exit
+}
+
+check_result(){
+    if [ "$?" != "0" ];then
+        send_error $1
+    fi
+}
 
 if test -z $BRANCH; then
     BRANCH=master
@@ -164,7 +167,6 @@ fi
 
 # 进入工程对应的repo
 HUB_PATH=~/app-publisher-hub
-FILENAME=`basename $REPO .git`
 mkdir -p $HUB_PATH
 spushd $HUB_PATH
 
@@ -189,7 +191,7 @@ else
             NEED_UPDATE=1
             info "存在新版本..."
         else 
-            send_error "同步错误，请检测$REPO."
+            send_error "同步错误，请检查网络."
         fi
     else 
         info "没有更新."
