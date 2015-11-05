@@ -52,14 +52,15 @@ current_dir() {
 usage() {
 cat << EOF
 
-USAGE: `basename $0` [-f] <api key> <user key> <repo> [<branch>]
+USAGE: `basename $0` [-f] <api key> <user key> <repo> <branch> <recipient> [<recipient> ...]
 
 DESCRIPTION:
 -f: 强制更新
 <api key>: 蒲公英账号API Key
 <user key>: 蒲公英账号User Key
 <repo>: 工程仓库路径
-<branch>: 分支, 若不指定，则为master
+<branch>: 分支
+<recipient>: 被邀请人
 
 EOF
 }
@@ -144,15 +145,15 @@ USER_KEY=$2
 REPO=$3
 BRANCH=$4
 FILENAME=`basename $REPO .git`
+shift
+shift
+shift
+shift
 
 # $1
 send_error(){
 error "[$FILENAME] $1"
-msmtp xuwenfa@star-net.cn <<EOF
-SUBJECT:[$FILENAME] $1
-
-EOF
-exit
+exit -1
 }
 
 check_result(){
@@ -180,6 +181,11 @@ fi
 info "同步代码..."
 if [ ! -d $FILENAME ];then
     `git clone $REPO --branch $BRANCH`
+    if [ "$?" == "1" ];then
+        NEED_UPDATE=1
+    else 
+        send_error "同步错误，请检查仓库配置."
+    fi
     spushd $FILENAME
     NEED_UPDATE=1
 else
@@ -191,13 +197,12 @@ else
             NEED_UPDATE=1
             info "存在新版本..."
         else 
-            send_error "同步错误，请检查网络."
+            send_error "同步错误，请检查仓库配置."
         fi
     else 
         info "没有更新."
     fi
 fi
-
 
 PROJECT=`$LS|awk -F. '/.xcodeproj/{print $1}'`
 if [ "$NEED_UPDATE" == "1" ]; then
@@ -218,9 +223,14 @@ if [ "$NEED_UPDATE" == "1" ]; then
     URL=`publish.sh "$API_KEY" "$USER_KEY" "$IPA_PATH" "$RELEASE_NOTE"`
     info "上传完成[$URL]."
 
-    invite.sh "$URL" "$LOGO_PATH" "$APP_NAME" "$APP_SHORT_VERSION" "$APP_BUILD_VERSION" xuwenfa@star-net.cn
+    count=$#
+    for ((i=0;i<$count;i++))
+    do
+        info "邀请$1..."
+        invite.sh "$URL" "$LOGO_PATH" "$APP_NAME" "$APP_SHORT_VERSION" "$APP_BUILD_VERSION" $1
+        shift
+    done
 fi
 
 spopd
 spopd
-

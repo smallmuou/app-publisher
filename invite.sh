@@ -87,7 +87,7 @@ bundle_short_version=$3
 bundle_build_version=$4
 subject="$bundle_name iOS 发布新版本$bundle_short_version($bundle_build_version)"
 
-msmtp $5 $5 << EOF
+msmtp $5 << EOF
 SUBJECT:$subject
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="X1234567890";
